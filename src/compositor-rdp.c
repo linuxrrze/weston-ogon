@@ -83,16 +83,6 @@
 #define DEFAULT_AXIS_STEP_DISTANCE 10
 #define RDP_MODE_FREQ 60 * 1000
 
-/* The RDP API is truly wonderful: the pixel format definition changed
- * from BGRA32 to B8G8R8A8, but some versions ship with a definition of
- * PIXEL_FORMAT_BGRA32 which doesn't actually build. Try really, really,
- * hard to find one which does. */
-#if FREERDP_VERSION_MAJOR >= 2 && defined(PIXEL_FORMAT_BGRA32) && !defined(RDP_PIXEL_FORMAT_B8G8R8A8)
-#define DEFAULT_PIXEL_FORMAT PIXEL_FORMAT_BGRA32
-#else
-#define DEFAULT_PIXEL_FORMAT RDP_PIXEL_FORMAT_B8G8R8A8
-#endif
-
 #ifdef HAVE_SURFACE_BITS_BMP
 #define SURFACE_BPP(cmd) cmd.bmp.bpp
 #define SURFACE_CODECID(cmd) cmd.bmp.codecID
@@ -169,7 +159,7 @@ rdp_peer_refresh_rfx(pixman_region32_t *damage, pixman_image_t *image, freerdp_p
 	uint32_t *ptr;
 	RFX_RECT *rfxRect;
 	rdpUpdate *update = peer->update;
-	SURFACE_BITS_COMMAND cmd;
+	SURFACE_BITS_COMMAND cmd = { 0 };
 	RdpPeerContext *context = (RdpPeerContext *)peer->context;
 
 	Stream_Clear(context->encode_stream);
@@ -180,8 +170,6 @@ rdp_peer_refresh_rfx(pixman_region32_t *damage, pixman_image_t *image, freerdp_p
 
 #ifdef HAVE_SKIP_COMPRESSION
 	cmd.skipCompression = TRUE;
-#else
-	memset(&cmd, 0, sizeof(cmd));
 #endif
 	cmd.destLeft = damage->extents.x1;
 	cmd.destTop = damage->extents.y1;
@@ -226,7 +214,7 @@ rdp_peer_refresh_nsc(pixman_region32_t *damage, pixman_image_t *image, freerdp_p
 	int width, height;
 	uint32_t *ptr;
 	rdpUpdate *update = peer->update;
-	SURFACE_BITS_COMMAND cmd;
+	SURFACE_BITS_COMMAND cmd = { 0 };
 	RdpPeerContext *context = (RdpPeerContext *)peer->context;
 
 	Stream_Clear(context->encode_stream);
@@ -237,8 +225,6 @@ rdp_peer_refresh_nsc(pixman_region32_t *damage, pixman_image_t *image, freerdp_p
 
 #ifdef HAVE_SKIP_COMPRESSION
 	cmd.skipCompression = TRUE;
-#else
-	memset(&cmd, 0, sizeof(cmd));
 #endif
 	cmd.destLeft = damage->extents.x1;
 	cmd.destTop = damage->extents.y1;
@@ -278,7 +264,7 @@ static void
 rdp_peer_refresh_raw(pixman_region32_t *region, pixman_image_t *image, freerdp_peer *peer)
 {
 	rdpUpdate *update = peer->update;
-	SURFACE_BITS_COMMAND cmd;
+	SURFACE_BITS_COMMAND cmd = { 0 };
 	SURFACE_FRAME_MARKER marker;
 	pixman_box32_t *rect, subrect;
 	int nrects, i;
@@ -292,7 +278,6 @@ rdp_peer_refresh_raw(pixman_region32_t *region, pixman_image_t *image, freerdp_p
 	marker.frameAction = SURFACECMD_FRAMEACTION_BEGIN;
 	update->SurfaceFrameMarker(peer->context, &marker);
 
-	memset(&cmd, 0, sizeof(cmd));
 	SURFACE_BPP(cmd) = 32;
 	SURFACE_CODECID(cmd) = 0;
 
@@ -630,13 +615,13 @@ rdp_peer_context_new(freerdp_peer* client, RdpPeerContext* context)
 	context->rfx_context->mode = RLGR3;
 	context->rfx_context->width = client->settings->DesktopWidth;
 	context->rfx_context->height = client->settings->DesktopHeight;
-	rfx_context_set_pixel_format(context->rfx_context, DEFAULT_PIXEL_FORMAT);
+	rfx_context_set_pixel_format(context->rfx_context, PIXEL_FORMAT_BGRA32);
 
 	context->nsc_context = nsc_context_new();
 	if (!context->nsc_context)
 		goto out_error_nsc;
 
-	nsc_context_set_parameters(context->nsc_context, NSC_COLOR_FORMAT, DEFAULT_PIXEL_FORMAT);
+	nsc_context_set_parameters(context->nsc_context, NSC_COLOR_FORMAT, PIXEL_FORMAT_BGRA32);
 
 	context->encode_stream = Stream_New(NULL, 65536);
 	if (!context->encode_stream)
